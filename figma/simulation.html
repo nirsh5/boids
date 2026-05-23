@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figma Page Result</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Ratzif22';
+            src: url('../fonts/Ratzif22.otf') format('opentype');
+        }
+
+
+
+        body {
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            /* -webkit-font-smoothing removed to match thickness of main page */
+        }
+
+        #screen-container {
+            width: 100vw;
+            height: 100vh;
+            background-color: transparent;
+            position: relative;
+            flex-shrink: 0;
+            /* Prevent shrinking if window is smaller */
+            overflow: hidden;
+        }
+
+        .serif-text {
+            font-family: 'Instrument Serif', serif;
+            color: white;
+            line-height: 1;
+        }
+
+        .text-number {
+            position: absolute;
+            left: 85px;
+            top: 125px;
+            font-size: 50px;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            opacity: 0;
+            /* Hidden initially */
+        }
+
+        .text-title {
+            position: absolute;
+            left: 300px;
+            /* Offset for wide "BEHAVIOR" label */
+            top: 125px;
+            font-size: 50px;
+            text-transform: uppercase;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            opacity: 0;
+            /* Hidden initially */
+        }
+
+        .arrow-icon {
+            position: absolute;
+            left: 154px;
+            top: 210px;
+            width: 46px;
+            width: 46px;
+            height: 10px;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .fast-fade {
+            transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+        }
+
+        /* Add any custom content styles here */
+
+        /* Footer Navigation Buttons */
+        .footer-nav {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            /* Shifted 1px right (from -22px to -21px) as requested */
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-end;
+            /* Ensures all decorations and pills sit on the same baseline */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+            z-index: 100;
+        }
+
+        .footer-nav.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .pill-group {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .nav-pill {
+            font-family: 'Helvetica Neue', sans-serif;
+            font-size: 15px;
+            text-transform: uppercase;
+            color: white;
+            /* Default text color */
+            padding: 7.5px 14px;
+            border-radius: 25px;
+            border: 1.5px solid white;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease, background-color 0.3s;
+            opacity: 0.75;
+            /* Set to 0.75 as requested */
+        }
+
+        .nav-pill:hover {
+            opacity: 1;
+        }
+
+        .nav-pill.active {
+            background-color: rgba(255, 255, 255, 0.3);
+            opacity: 1;
+        }
+
+        .simulation-description {
+            position: absolute;
+            left: 220px;
+            top: 210px;
+            width: 550px;
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            color: white;
+            line-height: 110%;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            pointer-events: none;
+        }
+
+        .simulation-description.visible {
+            opacity: 1;
+        }
+
+        .circle-decoration {
+            width: 90px;
+            height: 90px;
+            border: 1.4px solid white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 51px;
+            /* Precise gap from pills */
+            flex-shrink: 0;
+        }
+
+        .rect-decoration {
+            width: 150px;
+            /* Fixed width based on 'Separation' row content + 11px padding */
+            height: auto;
+            /* Auto height to fit rows + padding */
+            margin-left: 52px;
+            position: relative;
+            flex-shrink: 0;
+            border: 1.4px solid white;
+            border-radius: 4.39px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            padding: 11px 13px;
+            /* 11px padding on all sides as requested */
+        }
+
+        .rect-overlay-group {
+            position: relative;
+            /* Changed from absolute to flow naturally with padding */
+            bottom: auto;
+            /* Removed override */
+            right: auto;
+            /* Removed override */
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            width: 100%;
+            /* Fill container width minus padding */
+        }
+
+        .state-row {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-family: 'Ratzif22', serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-size: 15px;
+            color: white;
+            width: 100%;
+            /* Total gap between label and value is 46px. 
+               Arrow width is 23px. (46 - 23) / 2 = 11.5px gap on each side of arrow. */
+            gap: 11.5px;
+        }
+
+        .state-arrow {
+            width: 23px;
+            height: 8px;
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .state-label {
+            text-align: left;
+            opacity: 1;
+            /* Keeping it white */
+        }
+
+        .value {
+            text-align: right;
+            margin-left: auto;
+            /* Pushes value to right edge, separating from arrow */
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .state-row .arrow {
+            flex-grow: 1;
+            text-align: center;
+            padding: 0 8px;
+            font-weight: 300;
+            /* Thinner arrow if standard font char */
+        }
+
+        .reflect-button {
+            position: absolute;
+            right: 44px;
+            /* Matches the 44px edge distance of PREV button */
+            bottom: 42px;
+            font-family: 'Ratzif22', serif;
+            font-size: 15px;
+            color: white;
+            text-transform: uppercase;
+            /* Changed back to uppercase to match global nav */
+            text-decoration: none;
+            width: auto;
+            /* Auto width ensures the text defines the footprint while maintaining right-alignment */
+            height: auto;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            padding-bottom: 2px;
+            opacity: 0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            pointer-events: none;
+        }
+
+        .reflect-button.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .reflect-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0.1px;
+            left: 0;
+            width: 100%;
+            height: 0.9px;
+            background-color: white;
+            transform-origin: bottom right;
+            transform: scaleX(0);
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        .reflect-button:hover {
+            text-decoration: none !important;
+            border: none !important;
+            outline: none !important;
+            font-weight: normal !important;
+        }
+
+        .reflect-button:hover::after {
+            transform: scaleX(1);
+        }
+
+        /* Intro text styling */
+        .intro-text {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            top: 50%;
+            width: auto;
+            height: 24px;
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            color: white;
+            white-space: nowrap;
+            line-height: 24px;
+            text-align: center;
+            z-index: 10;
+            /* opacity: 0; handled by script */
+            visibility: hidden;
+            transition: none;
+        }
+
+        /* Audio Asset Hidden */
+        #typewriter-sound {
+            display: none;
+        }
+
+        .intro-text span {
+            opacity: 0;
+            display: inline-block;
+            transition: opacity 0.5s ease;
+        }
+
+        .intro-text span.on {
+            opacity: 1;
+        }
+
+        /* 
+        .intro-text.visible {
+            opacity: 1;
+        } 
+        */
+
+        .intro-text.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s ease;
+        }
+
+        .intro-text.hidden {
+            display: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1546px;
+            height: 1004px;
+            z-index: 20;
+            pointer-events: none;
+            filter: blur(0.75px);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Synchronization Layer for "One Piece" appearance */
+        #controls-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+            z-index: 100;
+        }
+
+        #controls-layer.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+
+<body>
+    <div id="screen-container">
+        <!-- Top Navigation -->
+
+        <!-- p5 Simulation Canvas -->
+        <div id="canvas-container"></div>
+        <script src="../p5/simulation.js"></script>
+
+        <!-- Intro Text (shown first) -->
+        <div class="intro-text">Is the group a sum of individuals or a force that reshapes them?</div>
+
+        <!-- Audio Asset (Sentence 3) -->
+        <audio id="typewriter-sound" src="../assets/sentence3.mp3" preload="auto"></audio>
+
+        <!-- Controls Layer: Wrapped for synchronized "One Piece" appearance -->
+        <div id="controls-layer">
+            <!-- Dynamic Titles -->
+            <div id="display-number" class="serif-text text-number">BEHAVIOR</div>
+
+            <!-- Decoration -->
+            <div class="arrow-icon">
+                <svg width="46" height="10" viewBox="0 0 46 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M0.635742 4.04442C0.284757 4.04442 0.000228136 4.32895 0.000228167 4.67993C0.000228197 5.03092 0.284758 5.31545 0.635742 5.31545L0.635742 4.67993L0.635742 4.04442ZM45.0851 5.1293C45.3333 4.88112 45.3333 4.47874 45.0851 4.23055L41.0407 0.186165C40.7925 -0.0620181 40.3902 -0.0620181 40.142 0.186165C39.8938 0.434349 39.8938 0.836734 40.142 1.08492L43.737 4.67993L40.142 8.27494C39.8938 8.52312 39.8938 8.92551 40.142 9.17369C40.3902 9.42187 40.7925 9.42187 41.0407 9.17369L45.0851 5.1293ZM0.635742 4.67993L0.635742 5.31545L44.6357 5.31544L44.6357 4.67993L44.6357 4.04441L0.635742 4.04442L0.635742 4.67993Z"
+                        fill="white" />
+                </svg>
+            </div>
+
+            <!-- Description Container -->
+            <div id="desc-container" class="simulation-description">Short distances with clear visibility between nearby
+                flocks</div>
+
+            <!-- Footer Buttons -->
+            <div class="footer-nav">
+                <div class="circle-decoration">
+                    <svg width="22" height="29" viewBox="0 0 20 26" fill="none" xmlns="http://www.w3.org/2000/svg"
+                        style="transform-origin: 50% 60%; transform: translateY(-3px);">
+                        <path
+                            d="M9.07617 0.736084C9.31975 0.0879648 10.2367 0.0880933 10.4805 0.736084L19.2588 24.0974C19.443 24.5877 19.0803 25.1109 18.5566 25.1111H1.00098C0.477116 25.1111 0.114572 24.5878 0.298828 24.0974L9.07617 0.736084Z"
+                            fill="rgba(255, 255, 255, 0.3)" stroke="white" stroke-width="0.9" />
+                    </svg>
+                </div>
+
+                <div class="pill-group">
+                    <div class="nav-pill" onclick="selectMode(this, 'murmuration')">murmuration</div>
+                    <div class="nav-pill" onclick="selectMode(this, 'Foraging')">Foraging</div>
+                    <div class="nav-pill" onclick="selectMode(this, 'ribbon')">ribbon</div>
+                    <div class="nav-pill" onclick="selectMode(this, 'Predator hole')">Predator hole</div>
+                    <div class="nav-pill" onclick="selectMode(this, 'split')">split</div>
+                    <div class="nav-pill" onclick="selectMode(this, 'roosting')">roosting</div>
+                </div>
+
+                <div class="rect-decoration">
+                    <div class="rect-overlay-group">
+                        <div class="state-row">
+                            <span class="state-label">Separation</span>
+                            <img src="../assets/Arrow 9.svg" class="state-arrow">
+                            <span id="stat-sep" class="value"></span>
+                        </div>
+                        <div class="state-row">
+                            <span class="state-label">Alignment</span>
+                            <img src="../assets/Arrow 9.svg" class="state-arrow">
+                            <span id="stat-ali" class="value"></span>
+                        </div>
+                        <div class="state-row" style="transform: translateY(-0.5px);">
+                            <span class="state-label">Cohesion</span>
+                            <img src="../assets/Arrow 9.svg" class="state-arrow">
+                            <span id="stat-coh" class="value"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="reflect-button" onclick="startReflection()">REFLECT</div>
+        </div>
+    </div>
+
+    <script>
+        function selectMode(element, modeName) {
+            // 1. Determine new text based on mode
+            let newText = "";
+            const lowerMode = modeName.toLowerCase();
+            if (lowerMode === 'murmuration') {
+                newText = "Short distances with clear visibility between nearby flocks";
+            } else if (lowerMode === 'foraging') {
+                newText = "Wander behaviors to dominate for area coverage";
+            } else if (lowerMode === 'ribbon') {
+                newText = "High speed with one dominant direction of motion";
+            } else if (lowerMode === 'predator hole') {
+                newText = "Localized threat enters the flock";
+            } else if (lowerMode === 'split') {
+                newText = "Obstacle block vision or sensory range";
+            } else if (lowerMode === 'roosting') {
+                newText = "Speed decreases near a known resting site";
+            }
+
+            // 2. Update UI State (Pills)
+            const pills = document.querySelectorAll('.nav-pill');
+            pills.forEach(pill => pill.classList.remove('active'));
+            element.classList.add('active');
+
+            // 3. Update P5 Simulation
+            let simulationMode = lowerMode;
+            if (modeName === 'Predator hole') {
+                simulationMode = 'predator';
+            }
+            // Note: 'Foraging' logic handled by lowerMode check above generally, 
+            // but let's keep exact mapping if needed. 
+            // Actually existing code logic was:
+            // if (modeName === 'Predator hole') simulationMode = 'predator';
+            // else if (modeName === 'Foraging') simulationMode = 'foraging';
+            // My lowerMode logic covers 'Foraging' -> 'foraging'. 
+            // 'Predator hole' -> 'predator hole', but P5 expects 'predator'? 
+            // Let's stick to strict existing mapping to be safe.
+            if (modeName === 'Predator hole') {
+                simulationMode = 'predator';
+            }
+
+            if (typeof changeSimulationMode === 'function') {
+                changeSimulationMode(simulationMode);
+            }
+
+            // 4. Reveal/Update Header & Description
+            const numEl = document.getElementById('display-number');
+            const arrowEl = document.querySelector('.arrow-icon');
+            const desc = document.getElementById('desc-container');
+
+            // Validate elements exist
+            if (!desc) return;
+
+            // Handle first entry (reveal arrow and description) or subsequent mode change
+            if (desc && !desc.classList.contains('visible')) {
+                // First entry: Reveal EVERYTHING together immediately
+                // Remove fast-fade class if present to ensure slow entry
+                if (arrowEl) arrowEl.classList.remove('fast-fade');
+                if (desc) desc.classList.remove('fast-fade');
+
+                numEl.style.opacity = '1';
+                if (arrowEl) arrowEl.style.opacity = '1';
+
+                // Immediately show the text for the first time without fade-out delay
+                if (newText) {
+                    desc.textContent = newText;
+                    desc.classList.add('visible');
+                }
+            } else {
+                // Subsequent changes: Cross-fade logic for TEXT ONLY
+                // Add fast-fade class to enforce speed
+                if (desc) desc.classList.add('fast-fade');
+
+                // FORCE REFLOW to ensure class change registers before opacity change
+                if (desc) void desc.offsetWidth;
+
+                // Ensure arrow stays visible
+                if (arrowEl) arrowEl.style.opacity = '1';
+
+                if (newText) {
+                    // Fade out text only
+                    desc.classList.remove('visible');
+
+                    // Wait for fade out (0.5s), then swap and fade in text
+                    setTimeout(() => {
+                        desc.textContent = newText;
+                        desc.classList.add('visible');
+                    }, 500);
+                } else {
+                    desc.classList.remove('visible');
+                }
+            }
+
+            // 5. Update State Value & Stats (Bottom Right)
+            const stateValue = document.getElementById('state-value');
+            const sepEl = document.getElementById('stat-sep');
+            const aliEl = document.getElementById('stat-ali');
+            const cohEl = document.getElementById('stat-coh');
+
+            const statsData = {
+                'murmuration': { sep: 1.5, ali: 2.0, coh: 2.0 },
+                'foraging': { sep: 2.5, ali: 1.0, coh: 0.8 },
+                'ribbon': { sep: 1.0, ali: 2.5, coh: 1.5 },
+                'predator hole': { sep: 3.0, ali: 1.5, coh: 1.0 },
+                'split': { sep: 3.2, ali: 1.0, coh: 1.0 },
+                'roosting': { sep: 0.5, ali: 0.5, coh: 3.0 }
+            };
+
+            if (stateValue) {
+                stateValue.textContent = modeName.charAt(0).toUpperCase() + modeName.slice(1);
+            }
+
+            const stats = statsData[modeName.toLowerCase()] || { sep: 0, ali: 0, coh: 0 };
+            const statsElements = [
+                { el: document.getElementById('stat-sep'), val: stats.sep },
+                { el: document.getElementById('stat-ali'), val: stats.ali },
+                { el: document.getElementById('stat-coh'), val: stats.coh }
+            ];
+
+            if (stateValue) {
+                stateValue.textContent = modeName.charAt(0).toUpperCase() + modeName.slice(1);
+            }
+
+            // Reveal arrows
+            document.querySelectorAll('.state-arrow').forEach(arrow => {
+                arrow.style.opacity = '1';
+            });
+
+            statsElements.forEach(item => {
+                if (item.el) {
+                    if (item.el.style.opacity === '1') {
+                        // Subsequent change: Fade out, update, fade in
+                        item.el.classList.add('fast-fade'); // Explicitly add fast-fade (if not present) for exit
+                        item.el.style.opacity = '0';
+                        setTimeout(() => {
+                            item.el.textContent = item.val;
+                            item.el.style.opacity = '1';
+                        }, 500);
+                    } else {
+                        // First reveal
+                        item.el.textContent = item.val;
+                        item.el.style.opacity = '1';
+                    }
+                }
+            });
+        }
+
+        // Page state management
+        let isIntroPhase = true;
+
+        // Show intro text after 4 seconds
+        // Typewriter Logic
+        function typeLine(el, opts = {}) {
+            if (!el) return;
+            const delayBefore = opts.delayBefore ?? 500;
+            const perChar = opts.perChar ?? 55;
+            const stay = opts.stay ?? 3000;
+            const shouldFade = opts.fadeOut ?? false;
+
+            const text = el.dataset.text || el.textContent || "";
+            el.textContent = "";
+            el.classList.remove("fade-out");
+            el.style.display = 'block';
+            el.style.visibility = "visible";
+            el.style.opacity = "1";
+
+            setTimeout(() => {
+                // Reveal self in navigation bar
+                window.parent.postMessage('REVEAL_NAV_ITEM', '*');
+
+                // Centralized narration management: tell parent to play
+                window.parent.postMessage({ type: 'play-sentence', id: 'sentence3' }, '*');
+
+                const spans = [];
+                for (let i = 0; i < text.length; i++) {
+                    const ch = text[i] === " " ? "\u00A0" : text[i];
+                    const s = document.createElement("span");
+                    s.textContent = ch;
+                    el.appendChild(s);
+                    spans.push(s);
+                }
+
+                let idx = 0;
+                const timer = setInterval(() => {
+                    if (idx >= spans.length) {
+                        clearInterval(timer);
+                        if (shouldFade) {
+                            setTimeout(() => {
+                                el.classList.add("fade-out");
+                                setTimeout(() => window.parent.postMessage('text-faded-out', '*'), 500);
+                            }, stay);
+                        }
+                        el.dispatchEvent(new CustomEvent('typingFinished'));
+                        return;
+                    }
+                    spans[idx].classList.add("on");
+                    idx++;
+                }, perChar);
+            }, delayBefore);
+        }
+
+        // Show intro text after 4 seconds
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const startMode = urlParams.get('start');
+            const shouldWait = urlParams.get('wait') === 'true';
+
+            if (startMode === 'controls') {
+                // Skip intro phase immediately
+                isIntroPhase = false;
+                const introText = document.querySelector('.intro-text');
+                if (introText) {
+                    introText.classList.add('hidden');
+                    introText.style.display = 'none';
+                }
+
+                if (shouldWait) {
+                    // Stay hidden until 'reveal-controls' message from parent
+                    return;
+                }
+
+                // Reveal controls immediately (no animation)
+                const layer = document.getElementById('controls-layer');
+                if (layer) layer.classList.add('visible');
+
+                document.querySelector('.footer-nav').classList.add('visible');
+                document.querySelector('.reflect-button').classList.add('visible');
+                // Reveal header along with navigation
+                const numEl = document.getElementById('display-number');
+                if (numEl) {
+                    numEl.textContent = "BEHAVIOR";
+                    numEl.style.opacity = '1';
+                }
+
+                // Reveal self in navigation bar for direct entry
+                window.parent.postMessage('REVEAL_NAV_ITEM', '*');
+                return;
+            }
+
+            const introText = document.querySelector('.intro-text');
+            if (introText) {
+                // Unified Delay: 800ms, Faster typing (50ms), Shorter stay (2.5s)
+                typeLine(introText, { delayBefore: 1500, fadeOut: true, perChar: 55, stay: 3500 });
+            }
+        });
+
+        function transitionToControls() {
+            // Always ensure intro text is hidden when entering controls
+            const introText = document.querySelector('.intro-text');
+            if (introText && !introText.classList.contains('hidden')) {
+                introText.classList.add('fade-out');
+                setTimeout(() => {
+                    introText.classList.add('hidden');
+                    introText.style.display = 'none';
+
+                    // Show header but DON'T show mode data (desc/stats) until clicked
+                    const numEl = document.getElementById('display-number');
+                    if (numEl) {
+                        numEl.textContent = "BEHAVIOR";
+                        numEl.style.opacity = '1';
+                    }
+
+                    if (typeof changeSimulationMode === 'function') {
+                        changeSimulationMode('murmuration');
+                    }
+
+                    document.querySelector('.footer-nav').classList.add('visible');
+                    document.querySelector('.reflect-button').classList.add('visible');
+
+                    // Reveal EVERYTHING AS ONE PIECE using the layer
+                    const layer = document.getElementById('controls-layer');
+                    if (layer) layer.classList.add('visible');
+                }, 800); // Standardized to 800ms delay
+            } else {
+                // FALLBACK: Reveal layer and children immediately if text is already gone
+                const layer = document.getElementById('controls-layer');
+                if (layer) layer.classList.add('visible');
+
+                document.querySelector('.footer-nav').classList.add('visible');
+                document.querySelector('.reflect-button').classList.add('visible');
+
+                // Show header in fallback too
+                const numEl = document.getElementById('display-number');
+                if (numEl) {
+                    numEl.textContent = "BEHAVIOR";
+                    numEl.style.opacity = '1';
+                }
+
+                if (typeof changeSimulationMode === 'function') {
+                    changeSimulationMode('murmuration');
+                }
+            }
+            isIntroPhase = false;
+        }
+
+        // Listen for messages from parent (index.html)
+        window.addEventListener('message', (event) => {
+            if (event.data === 'transition-to-controls' || event.data === 'reveal-controls') {
+                transitionToControls();
+            }
+            if (event.data === 'reset-to-intro') {
+                // Instantly reset to intro state
+                isIntroPhase = true;
+                const introText = document.querySelector('.intro-text');
+
+                // Hide Controls Container IMMEDIATELY as one piece
+                const layer = document.getElementById('controls-layer');
+                if (layer) layer.classList.remove('visible');
+
+                // Show text
+                if (introText) {
+                    introText.classList.remove('hidden');
+                    introText.classList.remove('fade-out');
+                    introText.style.display = 'block'; // Ensure visibility
+                    // Re-run typewriter animation with 2s delay 
+                    typeLine(introText, { delayBefore: 1500, fadeOut: true, perChar: 55, stay: 3500 });
+                }
+
+                // RESET INTERNAL STATE AFTER FADE (800ms)
+                setTimeout(() => {
+                    changeSimulationMode('murmuration');
+                    document.querySelectorAll('.nav-pill').forEach(pill => pill.classList.remove('active'));
+                    const sv = document.getElementById('state-value');
+                    if (sv) sv.textContent = "";
+                    const desc = document.getElementById('desc-container');
+                    if (desc) {
+                        desc.textContent = "";
+                        desc.classList.remove('visible');
+                    }
+                    document.querySelectorAll('.state-arrow, .value').forEach(el => {
+                        el.style.opacity = '0';
+                    });
+                    const numEl = document.getElementById('display-number');
+                    const arrowEl = document.querySelector('.arrow-icon');
+                    if (numEl) numEl.style.opacity = '0';
+                    if (arrowEl) arrowEl.style.opacity = '0';
+                }, 800);
+            }
+            if (event.data === 'exit-page') {
+                // Hide Controls Container IMMEDIATELY as one piece
+                const layer = document.getElementById('controls-layer');
+                if (layer) layer.classList.remove('visible');
+
+                // Cleanup internal state after transition
+                setTimeout(() => {
+                    if (typeof changeSimulationMode === 'function') {
+                        changeSimulationMode('murmuration');
+                    }
+                    document.querySelectorAll('.nav-pill').forEach(pill => pill.classList.remove('active'));
+                    document.querySelectorAll('.state-arrow, .value').forEach(el => {
+                        el.style.opacity = '0';
+                    });
+                    const numEl = document.getElementById('display-number');
+                    const arrowEl = document.querySelector('.arrow-icon');
+                    if (numEl) numEl.style.opacity = '0';
+                    if (arrowEl) arrowEl.style.opacity = '0';
+
+                    document.querySelector('.footer-nav')?.classList.remove('visible');
+                    document.querySelector('.reflect-button')?.classList.remove('visible');
+                    const desc = document.getElementById('desc-container');
+                    if (desc) {
+                        desc.textContent = "";
+                        desc.classList.remove('visible');
+                    }
+                }, 800);
+            }
+        });
+
+        function startReflection() {
+            // 1. Trigger boids to fly up
+            if (typeof changeSimulationMode === 'function') {
+                changeSimulationMode('reflect');
+            }
+
+            // 2. Trigger Video Ascent (Visuals only, no navigation yet)
+            window.parent.postMessage('start-ascent-video', '*');
+
+            // 3. Fade out UI immediately AS ONE PIECE
+            const layer = document.getElementById('controls-layer');
+            if (layer) layer.classList.remove('visible');
+
+            // 4. Navigate parent to End Page after fixed 2 seconds
+            setTimeout(() => {
+                window.parent.postMessage('navigate-to-end', '*');
+            }, 2000);
+        }
+
+
+    </script>
+</body>
+
+</html>

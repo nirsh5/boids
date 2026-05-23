@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>End</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Ratzif22';
+            src: url('../fonts/Ratzif22.otf') format('opentype');
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background-color: transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .text-container {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            top: 50%;
+            width: 617px;
+            height: 101px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        .text-container.visible {
+            opacity: 1;
+        }
+
+        .end-sentence {
+            font-family: 'Instrument Serif', serif;
+            font-size: 50px;
+            color: white;
+            text-transform: uppercase;
+            margin: 0;
+            font-weight: normal;
+            line-height: 65px;
+        }
+
+        .return-wrapper {
+            position: absolute;
+            left: 683px;
+            top: 904.13px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        .return-wrapper.visible {
+            opacity: 1;
+        }
+
+        #btn-return,
+        #btn-startover {
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            color: white;
+            text-transform: uppercase;
+            text-decoration: none;
+            cursor: pointer;
+            line-height: 1;
+            padding-bottom: 2px;
+            letter-spacing: 0;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Inherits antialiased from body */
+        }
+
+        .decorative-slash {
+            width: 0.9px;
+            height: 28px;
+            background-color: white;
+            transform: rotate(20deg);
+            margin-bottom: 2px;
+        }
+
+        #btn-return::after,
+        #btn-startover::after {
+            content: '';
+            position: absolute;
+            bottom: 0.1px;
+            left: 0;
+            width: 100%;
+            height: 0.9px;
+            background-color: white;
+            transform-origin: right;
+            transform: scaleX(1);
+            transition: transform 0.4s ease;
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        #btn-return:hover::after,
+        #btn-startover:hover::after {
+            transform: scaleX(0);
+        }
+
+        #btn-return:hover,
+        #btn-startover:hover {
+            opacity: 1;
+            text-decoration: none !important;
+        }
+
+        #btn-return.clicked::after,
+        #btn-startover.clicked::after {
+            transform: scaleX(0) !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="return-wrapper">
+        <div id="btn-return"
+            onclick="this.classList.add('clicked'); window.parent.postMessage('NAVIGATE_BACK_TO_CONTROLS', '*')">return
+        </div>
+        <div class="decorative-slash"></div>
+        <div id="btn-startover" onclick="startOver()">start over</div>
+    </div>
+
+    <div class="text-container" id="text-container">
+        <div class="end-sentence" id="typing-text">How does your presence move others around you?</div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAscent = urlParams.get('mode') === 'ascent';
+            const passedDelay = urlParams.get('startDelay');
+
+            // Determine when to show the text
+            let revealDelay = 0;
+            if (passedDelay !== null) {
+                revealDelay = Math.min(400, parseInt(passedDelay));
+            } else if (isAscent) {
+                // If we don't have a passed delay but are in ascent, wait 400ms for a snappier reveal
+                revealDelay = 400;
+            }
+
+            // User Request: Add extra 0.5s delay to sentence appearance
+            revealDelay += 500;
+
+            const textContainer = document.getElementById('text-container');
+            const returnWrapper = document.querySelector('.return-wrapper');
+
+            setTimeout(() => {
+                if (textContainer) {
+                    textContainer.classList.add('visible');
+
+                    // Show buttons after 2.0 seconds total as requested
+                    setTimeout(() => {
+                        if (returnWrapper) returnWrapper.classList.add('visible');
+                    }, 2000);
+                }
+            }, revealDelay);
+        });
+
+        function startOver() {
+            const btn = document.getElementById('btn-startover');
+            if (btn) btn.classList.add('clicked');
+            window.parent.postMessage('RESTART_EXPERIENCE', '*');
+        }
+    </script>
+</body>
+
+</html>

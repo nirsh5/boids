@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figma Page 2</title>
+    <style>
+        @font-face {
+            font-family: 'Ratzif22';
+            src: url('../fonts/Ratzif22.otf') format('opentype');
+        }
+
+        @font-face {
+            font-family: 'Instrument Serif';
+            src: url('../fonts/InstrumentSerif.ttf') format('truetype');
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: auto;
+            /* Allow scrolling if window is too small, or hidden if strict */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #screen-container {
+            width: 100vw;
+            height: 100vh;
+            background-color: transparent;
+            position: relative;
+            flex-shrink: 0;
+            /* Prevent shrinking if window is smaller */
+            overflow: hidden;
+        }
+
+
+
+        .individual-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 428px;
+            height: 24px;
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            color: white;
+            white-space: nowrap;
+            line-height: 24px;
+            z-index: 10;
+            /* Start hidden logic handled by script */
+            /* opacity: 0; removed to let script handle it */
+            visibility: hidden;
+            /* start hidden */
+        }
+
+        /* Typewriter Animation Styles */
+        .individual-text span {
+            opacity: 0;
+            display: inline-block;
+            transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+            /* direction: rtl; Removed for English */
+        }
+
+        .individual-text span.on {
+            opacity: 1;
+        }
+
+        .individual-text.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            /* Below text */
+            pointer-events: none;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+
+<body>
+    <div id="screen-container">
+        <!-- Top Navigation -->
+
+        <!-- p5 Single Bird Simulation Layer -->
+        <div id="canvas-container"></div>
+        <script src="../p5/onebird.js"></script>
+
+        <div class="individual-text">How does one move among others and remain itself?</div>
+
+        <!-- Audio Asset -->
+        <audio id="typewriter-sound" src="../assets/sentence1.mp3" preload="auto"></audio>
+    </div>
+    <script>
+        (function () {
+            /**
+             * Core function for typing line
+             */
+            function typeLine(el, opts = {}) {
+                if (!el) return;
+
+                const delayBefore = opts.delayBefore ?? 500;
+                const perChar = opts.perChar ?? 55;
+                const stay = opts.stay ?? 3000; // Stay visible for 3s before fading
+                const shouldFade = opts.fadeOut ?? false;
+
+                // Extract text and clean element
+                const text = el.dataset.text || el.textContent || "";
+                el.textContent = "";
+                el.style.visibility = "visible";
+                el.style.opacity = "1"; // Ensure parent is visible (spans handle opacity)
+
+                setTimeout(() => {
+                    // Reveal self in navigation bar
+                    window.parent.postMessage('REVEAL_NAV_ITEM', '*');
+
+                    // Centralized narration management: tell parent to play
+                    window.parent.postMessage({ type: 'play-sentence', id: 'sentence1' }, '*');
+
+                    const spans = [];
+                    for (let i = 0; i < text.length; i++) {
+                        const ch = text[i] === " " ? "\u00A0" : text[i];
+                        const s = document.createElement("span");
+                        s.textContent = ch;
+                        el.appendChild(s);
+                        spans.push(s);
+                    }
+
+                    let idx = 0;
+                    const timer = setInterval(() => {
+                        if (idx >= spans.length) {
+                            clearInterval(timer);
+                            if (shouldFade) {
+                                setTimeout(() => {
+                                    el.classList.add("fade-out");
+                                    // Notify parent after transition (0.8s)
+                                    setTimeout(() => {
+                                        window.parent.postMessage('text-faded-out', '*');
+                                    }, 500);
+                                }, stay);
+                            }
+                            // Completion event
+                            el.dispatchEvent(new CustomEvent('typingFinished'));
+                            return;
+                        }
+                        spans[idx].classList.add("on");
+                        idx++;
+                    }, perChar);
+                }, delayBefore);
+            }
+
+            /**
+             * Orchestrate Timing:
+             * 1. Wait for startDelay (video settling).
+             * 2. Trigger p5 animation (start-animation).
+             * 3. Wait for bird to enter screen (bird-entered-screen) -> Trigger Typewriter.
+             */
+            let typewriterStarted = false;
+            window.addEventListener("load", () => {
+                const el = document.querySelector(".individual-text");
+                // Parse delay from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const startDelay = parseInt(urlParams.get('startDelay')) || 0;
+
+                // 1. Wait for video settling time
+                setTimeout(() => {
+                    // 2. Trigger bird animation
+                    window.postMessage('start-animation', '*');
+                }, startDelay);
+
+                // Listen for bird entry and exist messages
+                window.addEventListener('message', (event) => {
+                    // 3. Trigger typewriter when bird enters
+                    if (event.data === 'bird-entered-screen' && !typewriterStarted && el) {
+                        typewriterStarted = true;
+                        typeLine(el, { delayBefore: 0, fadeOut: true, perChar: 55, stay: 3500 });
+                    }
+
+                    if (event.data === 'exit-page') {
+                        if (el) {
+                            el.classList.add("fade-out");
+                            el.classList.add("hidden");
+                        }
+                    }
+                });
+            });
+        })();
+    </script>
+</body>
+
+</html>

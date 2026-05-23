@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'AboutFont';
+            src: url('../fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-6zUTjnTLgNs 2.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Ratzif22';
+            src: url('../fonts/Ratzif22.otf') format('opentype');
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            padding: 58px 65px 65px 59px;
+            /* Top: 58px, Bottom: 65px as requested */
+            box-sizing: border-box;
+            width: 100%;
+            color: white;
+            font-family: 'Instrument Serif', serif;
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 59px;
+            /* align-items: start was the bug; now it stretches to allow space-between to work */
+            background-color: transparent;
+        }
+
+        .title-col {
+            align-self: start;
+            /* Keep the title at the top */
+        }
+
+        .title-col h1 {
+            font-family: 'Instrument Serif', serif;
+            font-size: 50px;
+            margin: 0;
+            font-weight: normal;
+            line-height: 1;
+            letter-spacing: 1px;
+            margin-top: 1px;
+            /* Moved 4px up (5 -> 1) */
+            margin-left: 10px;
+            /* Moved 4px right (6 -> 10) */
+        }
+
+        .text-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            /* Stretch to fill the grid cell height */
+        }
+
+        .content {
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            line-height: 24px;
+            font-weight: 300;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            width: 90%;
+            /* Keeping the line-wrap width */
+            margin-top: -5px;
+            /* Align text cap-height with title */
+        }
+
+        .content p {
+            margin: 0 0 23px 0;
+        }
+
+        .content p:first-child {
+            margin-top: 12px;
+            margin-bottom: 23px;
+        }
+
+        .footer {
+            font-family: 'Ratzif22', serif;
+            font-size: 15px;
+            line-height: 18px;
+            display: flex;
+            justify-content: space-between;
+            margin: 0;
+        }
+
+        .footer-left,
+        .footer-right {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .footer-right {
+            align-items: flex-start;
+            position: relative;
+            right: 102px;
+            margin-top: 18px;
+        }
+
+        .footer-right span:nth-child(1) {
+            position: relative;
+            right: 10px;
+        }
+
+        .arrow-svg {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 18px;
+            margin-bottom: 2px;
+            position: relative;
+            left: 7px;
+        }
+    </style>
+    <style>
+        .arrow-svg {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 18px;
+            /* Maintain the spacing established */
+            margin-bottom: 2px;
+            position: relative;
+            left: 7px;
+            /* Maintain the offset */
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Left Column -->
+    <div class="title-col">
+        <h1>ABOUT</h1>
+    </div>
+
+    <!-- Right Column -->
+    <div class="text-col">
+        <div class="content">
+            <p>
+                How does an individual move within a collective that has a gravity of its own? Is the group a sum of
+                individuals, or a force that reshapes them?
+            </p>
+            <p>
+                This project explores collective behavior through the movement of starling flocks. In murmurations,
+                thousands of birds coordinate in real time, forming fluid structures without leaders or central control.
+                Complex, shifting forms emerge from simple local interactions — separation, alignment, and cohesion.
+            </p>
+            <p>
+                The project is based on the Boids model, a computational framework for simulating flocking behavior.
+                Here, each individual follows a small set of local rules, reducing a living phenomenon to parameters.
+                Instinct is translated into data, and movement into measurable forces, revealing how collective motion
+                emerges without global awareness or direction.
+            </p>
+        </div>
+
+        <div class="footer">
+            <div class="footer-left">
+                <span>Studio WWW</span>
+                <span>Guided by Nir Shaked and Yotam Mano</span>
+                <span>Visual Communications Department</span>
+                <span>Bezalel Academy of Arts and Design, 2026</span>
+            </div>
+            <div class="footer-right">
+                <span>Created by</span>
+                <span><img src="../assets/Arrow 11.svg" class="arrow-svg" alt="">Adi Grinshpan</span>
+                <span><img src="../assets/Arrow 11.svg" class="arrow-svg" alt="">Natalie Rissin</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('mousemove', (e) => {
+            // Send local coordinates to parent
+            window.parent.postMessage({
+                type: 'ABOUT_MOUSE_MOVE',
+                x: e.clientX,
+                y: e.clientY
+            }, '*');
+        });
+
+        // Close About overlay on any click inside the iframe
+        document.addEventListener('click', () => {
+            window.parent.postMessage('CLOSE_ABOUT', '*');
+        });
+    </script>
+</body>
+
+</html>

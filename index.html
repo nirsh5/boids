@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids Navigation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Instrument Serif';
+            src: url('fonts/InstrumentSerif.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Ratzif22';
+            src: url('fonts/Ratzif22.otf') format('opentype');
+        }
+
+        /* Global Layout */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #screen-container {
+            width: 100vw;
+            height: 100vh;
+            background-color: transparent;
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+            /* --- CONTROL PANEL --- */
+            --video-shift-x: 18%;
+            /* Changed from 15vw to 18% (of container) to lock alignment during zoom */
+            --video-scale: 1.63;
+            /* Change this value to zoom the video (e.g. 1.5, 2.0) */
+        }
+
+        .content-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            display: block;
+            transition: opacity 0.5s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .content-frame.active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 2;
+            /* Active on top */
+        }
+
+        /* Rule for persistent layer: if both active, keep old one and put it on TOP */
+        .content-frame.persistent {
+            opacity: 1 !important;
+            pointer-events: none;
+            z-index: 3;
+            /* Above new one (z-index 2) */
+        }
+
+        .nav-button {
+            position: absolute;
+            font-family: 'Ratzif22', serif;
+            font-size: 15px;
+            color: white;
+            text-transform: uppercase;
+            text-decoration: none;
+            cursor: pointer;
+            z-index: 9999;
+            /* Ensure strictly above everything */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            padding-bottom: 2px;
+            height: auto;
+            opacity: 0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .nav-button:hover {
+            text-decoration: none !important;
+            border: none !important;
+            outline: none !important;
+            font-weight: normal !important;
+        }
+
+        .nav-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0.1px;
+            left: 0;
+            width: 100%;
+            height: 0.9px;
+            background-color: white;
+            transform-origin: bottom right;
+            transform: scaleX(0);
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        .nav-button:hover::after {
+            transform: scaleX(1);
+        }
+
+        #btn-prev {
+            left: 42px;
+            bottom: 42px;
+            width: auto;
+            height: auto;
+        }
+
+        #btn-next {
+            right: 42px;
+            bottom: 42px;
+            width: auto;
+            height: auto;
+        }
+
+        #btn-about {
+            left: 150px;
+            top: 45px;
+            width: auto;
+            height: auto;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Instrument Serif', serif;
+            font-size: 18.62px;
+            letter-spacing: 0.02em;
+            text-decoration: none;
+            color: white;
+            cursor: pointer;
+            -webkit-font-smoothing: subpixel-antialiased;
+            -moz-osx-font-smoothing: auto;
+            z-index: 105;
+            /* Highest layer for clickability */
+        }
+
+        #btn-about::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -0.5px;
+            width: 100%;
+            height: 0.9px;
+            background-color: white;
+            transform: scaleX(0);
+            transform-origin: bottom right;
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        #btn-about:hover::after {
+            transform: scaleX(1);
+        }
+
+        /* Active State (Underline Persists) */
+        #btn-about.active-underline::after {
+            transform: scaleX(1);
+        }
+
+        /* Closing State: Shrink to Left */
+        #btn-about.closing::after {
+            transform-origin: bottom left !important;
+        }
+
+        /* Fixed Logo */
+        #main-logo {
+            position: absolute;
+            right: 42px;
+            top: 40px;
+            width: 212px;
+            height: 96px;
+            z-index: 100;
+            pointer-events: auto;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: opacity;
+        }
+
+        #sograim-icon {
+            position: absolute;
+            left: 42px;
+            top: 38px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* Background Video */
+        #bg-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            transition: transform 4.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(var(--video-shift-x)) translateY(-14%) scale(var(--video-scale));
+            pointer-events: none;
+            /* Prevent interaction with video element */
+        }
+
+        #bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(40, 0, 60, 0.1);
+            /* Adjust the last number (0.2) to make it darker (e.g. 0.4) or lighter (0.1) */
+            z-index: 0;
+            /* Same layer as video, sits on top due to DOM order */
+            pointer-events: none;
+        }
+
+        /* SUPER AGGRESSIVE Safari Play Button Hiding */
+        #bg-video::-webkit-media-controls,
+        #bg-video::-webkit-media-controls-start-playback-button,
+        #bg-video::-webkit-media-controls-play-button,
+        #bg-video::-webkit-media-controls-panel,
+        #bg-video::-webkit-media-controls-container,
+        #bg-video::-webkit-media-controls-overlay-play-button {
+            display: none !important;
+            -webkit-appearance: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        #bg-video.return-speed {
+            transition: transform 4.5s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Dynamic weighted easing, speeded up to 3.5s */
+        }
+
+        #bg-video.bg-shifted-up {
+            transform: translateX(var(--video-shift-x)) translateY(25%) scale(var(--video-scale));
+            /* Fine-tuned to reach the 'edge' of content */
+        }
+
+        /* Ensure iframe is above video */
+        #content-frame {
+            position: relative;
+            z-index: 1;
+        }
+
+        #soundwave-container {
+            position: absolute;
+            left: 42px;
+            top: 38px;
+            width: 64px;
+            height: 25px;
+            z-index: 101;
+            /* Between brackets and text */
+            pointer-events: auto;
+            /* Allow clicks */
+            cursor: pointer;
+        }
+
+        #top-nav {
+            position: absolute;
+            top: 45px;
+            left: 240px;
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+            transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .top-nav-link:not(.unlocked) {
+            display: none !important;
+        }
+
+        .top-nav-link.unlocked {
+            animation: navFadeIn 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+
+        @keyframes navFadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes navUnderlineReveal {
+            from {
+                transform: scaleX(0);
+            }
+
+            to {
+                transform: scaleX(1);
+            }
+        }
+
+        .top-nav-link {
+            font-family: 'Instrument Serif', serif;
+            font-size: 18.62px;
+            letter-spacing: 0.02em;
+            color: white;
+            text-decoration: none;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            padding-bottom: 2px;
+            line-height: 1;
+            /* Top-nav and About button stay robust (unsmoothed) */
+            -webkit-font-smoothing: subpixel-antialiased;
+            -moz-osx-font-smoothing: auto;
+        }
+
+        .top-nav-link::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -0.4px;
+            width: 100%;
+            height: 0.9px;
+            background-color: white;
+            transform: scaleX(0);
+            transform-origin: bottom right;
+            /* Default: Hover/Active Enter/Exit -> Right */
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        .top-nav-link:hover::after,
+        .top-nav-link.active::after {
+            transform: scaleX(1);
+        }
+
+        /* Special Exit: When closing via click (navigation), shrink to Left */
+        .top-nav-link.closing::after {
+            transform-origin: bottom left !important;
+        }
+
+        /* About Overlay */
+        #about-overlay {
+            position: absolute;
+            left: 50%;        
+            top: 50%;
+            width: 887px;
+            height: 628px;
+            border: 1.4px solid white;
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 200;
+            background-color: rgba(255, 255, 255, 0.08);
+            /* Glass effect */
+            backdrop-filter: blur(35px);
+            -webkit-backdrop-filter: blur(35px);
+            /* Flickering Fixes */
+            -webkit-transform: translateZ(0);
+            /* transform: translateZ(0); */
+            transform: translate(-50%, -50%);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            perspective: 1000px;
+
+            /* Fade Transition Logic */
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1), visibility 0.5s;
+            /* Match Boids 1s fade */
+        }
+
+        #about-overlay.visible {
+            visibility: visible;
+            opacity: 1;
+            transition-delay: 0s;
+        }
+
+        /* Disable interaction but keep normal appearance when About is open */
+        body.about-mode .nav-button:not(#btn-about),
+        body.about-mode .top-nav,
+        body.about-mode #main-logo {
+            pointer-events: none !important;
+        }
+
+        /* Backdrop to neutralize background content and catch clicks */
+        #about-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            /* Invisible but blocks clicks on background layers */
+            z-index: 199;
+            /* Below overlay (200) but above everything else */
+            display: none;
+            pointer-events: none;
+            /* Let clicks pass through when hidden */
+        }
+
+        #about-backdrop.visible {
+            display: block;
+            pointer-events: auto;
+            /* Capture clicks when visible */
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+
+<body>
+    <div id="screen-container">
+        <!-- Backdrop for About Mode -->
+        <div id="about-backdrop"></div>
+
+        <!-- Background Video -->
+        <video id="bg-video" class="bg-shifted-up" src="video/background.mp4" autoplay loop muted playsinline
+            webkit-playsinline preload="auto" disablePictureInPicture></video>
+
+        <!-- Darkening Overlay -->
+        <div id="bg-overlay"></div>
+
+        <script>
+            // Ultimate Autoplay Logic
+            document.addEventListener("DOMContentLoaded", function () {
+                var v = document.getElementById("bg-video");
+
+                // CRITICAL: Set muted properties explicitly for browser policies
+                v.muted = true;
+                v.defaultMuted = true;
+                v.setAttribute("muted", "");
+                v.setAttribute("playsinline", "");
+
+                // Retry mechanism
+                var playAttempt = setInterval(function () {
+                    // console.log("Checking video state...", v.readyState, "Paused:", v.paused);
+
+                    if (v.paused) {
+                        var p = v.play();
+                        if (p !== undefined) {
+                            p.then(_ => {
+                                // console.log("Autoplay started successfully!");
+                                clearInterval(playAttempt); // Stop trying once it works
+                            }).catch(error => {
+                                // console.log("Autoplay prevented, retrying...", error);
+                                // Ensure muted is still set
+                                v.muted = true;
+                            });
+                        }
+                    } else {
+                        // It is playing
+                        clearInterval(playAttempt);
+                    }
+                }, 500); // Check every 500ms
+
+                // Safety: Stop checking after 10 seconds to save resources
+                setTimeout(() => clearInterval(playAttempt), 10000);
+
+                // Store previous index to detect direction/skip
+                // Still keep the interaction fallback just in case the browser is extremely strict
+                document.body.addEventListener('click', function () {
+                    if (v.paused) {
+                        v.muted = true;
+                        v.play();
+                    }
+                }, { once: true });
+            });
+        </script>
+
+        <!-- Content Frames (Dual Layer for Cross-Fading) -->
+        <iframe id="frame-1" class="content-frame active" src=""></iframe>
+        <iframe id="frame-2" class="content-frame" src=""></iframe>
+
+        <!-- About Overlay -->
+        <iframe id="about-overlay" src="figma/about.html" frameborder="0"></iframe>
+
+        <!-- Navigation Buttons -->
+        <div id="btn-prev" class="nav-button" style="display: none;">PREVIOUS</div>
+        <div id="btn-next" class="nav-button">NEXT</div>
+        <div id="btn-about" class="nav-button">ABOUT</div>
+
+        <!-- Top Navigation -->
+        <div id="top-nav">
+            <div class="top-nav-link" onclick="handleNavClick(1)">INDIVIDUAL</div>
+            <div class="top-nav-link" onclick="handleNavClick(2)">BOIDS</div>
+            <div class="top-nav-link" onclick="handleNavClick(3)">COLLECTIVE</div>
+
+        </div>
+
+        <!-- Fixed Logo -->
+        <img id="main-logo" src="assets/svg.svg" alt="Logo">
+        <img id="sograim-icon" src="assets/sograim.svg" alt="Icon">
+
+        <!-- Soundwave Layer -->
+        <div id="soundwave-container"></div>
+        <script src="p5/soundwave.js"></script>
+
+        <!-- Background Audio -->
+        <audio id="bg-audio" src="assets/sound.mp3" preload="auto" loop></audio>
+        <audio id="sentence1" src="assets/sentence1.mp3" preload="auto"></audio>
+        <audio id="sentence2" src="assets/sentence2.mp3" preload="auto"></audio>
+        <audio id="sentence3" src="assets/sentence3.mp3" preload="auto"></audio>
+    </div>
+
+    <script>
+        // Page Configuration
+        const pages = [
+            'figma/OPENING.html',
+            'figma/INDIVIDUAL.html',
+            'figma/boids.html',
+            'figma/simulation.html',
+            'figma/end.html'
+        ];
+
+        let currentIndex = 0;
+        let openingStartTime = 0;
+        let boidsControlsActive = false; // Page 2 state
+        let currentBoidsModeIndex = 0; // 0=separation, 1=alignment, 2=cohesion
+        let simulationControlsActive = false; // Page 3 state
+        let ascentStartTime = 0; // Track when Reflect starts video movement
+        let activeFrameNum = 1;
+        let unlockedPages = { 1: false, 2: false, 3: false };
+
+        const btnNext = document.getElementById('btn-next');
+        const btnPrev = document.getElementById('btn-prev');
+        const mainLogo = document.getElementById('main-logo');
+        const bgVideo = document.getElementById('bg-video');
+        const btnAbout = document.getElementById('btn-about');
+        const aboutOverlay = document.getElementById('about-overlay');
+        const aboutBackdrop = document.getElementById('about-backdrop'); // New backdrop
+        const topNav = document.getElementById('top-nav');
+        const navLinks = document.querySelectorAll('.top-nav-link');
+
+        function getActiveFrame() { return document.getElementById(`frame-${activeFrameNum}`); }
+        function getInactiveFrame() { return document.getElementById(`frame-${activeFrameNum === 1 ? 2 : 1}`); }
+
+        // Toggle About Function
+        function toggleAbout(forceClose = false) {
+            const isVisible = aboutOverlay.classList.contains('visible');
+
+            if (isVisible || forceClose) {
+                // Close
+                aboutOverlay.classList.remove('visible');
+                aboutBackdrop.classList.remove('visible');
+                document.body.classList.remove('about-mode');
+
+                // Animate Line Close to Left
+                btnAbout.classList.remove('active-underline');
+                btnAbout.classList.add('closing');
+                setTimeout(() => {
+                    btnAbout.classList.remove('closing');
+                }, 400);
+
+            } else {
+                // Open (Line opens from Right - Default)
+                aboutOverlay.classList.add('visible');
+                aboutBackdrop.classList.add('visible');
+                document.body.classList.add('about-mode');
+                btnAbout.classList.add('active-underline');
+            }
+        }
+
+        btnAbout.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleAbout();
+        });
+
+        // Global click listener to close About on any click (except the button itself)
+        document.addEventListener('click', (e) => {
+            const isVisible = aboutOverlay.classList.contains('visible');
+            const clickedButton = btnAbout.contains(e.target);
+
+            // If visible and click is NOT on the About button, close it
+            if (isVisible && !clickedButton) {
+                toggleAbout(true);
+            }
+        });
+
+        // Backdrop click handler (for clicks outside the About window)
+        aboutBackdrop.addEventListener('click', () => {
+            toggleAbout(true);
+        });
+
+        // Helper to clear nav with "Close to Left" animation
+        function clearActiveNav() {
+            navLinks.forEach(link => {
+                if (link.classList.contains('active')) {
+                    link.classList.remove('active');
+                    link.classList.add('closing');
+                    // Remove 'closing' class after transition (0.4s) so it resets for next hover
+                    setTimeout(() => {
+                        link.classList.remove('closing');
+                    }, 400);
+                }
+            });
+        }
+
+        function updateNavActiveState(index, delay = 500) {
+            // Optimization: If already active, don't clear/reset to avoid flicker
+            if (index >= 1 && index <= 3) {
+                const targetLink = navLinks[index - 1];
+                if (targetLink.classList.contains('active')) {
+                    // Already active, ensure others are cleared but don't touch this one
+                    navLinks.forEach(link => {
+                        if (link !== targetLink && link.classList.contains('active')) {
+                            link.classList.remove('active');
+                            link.classList.add('closing');
+                            setTimeout(() => link.classList.remove('closing'), 400);
+                        }
+                    });
+                    return;
+                }
+            }
+
+            // Immediately remove active state via helper (Animate Close Left)
+            clearActiveNav();
+
+            // Map index to nav item: 1->0, 2->1, 3->2
+            if (index >= 1 && index <= 3) {
+                if (delay === 0) {
+                    // Direct Click: Line stays (no delay)
+                    navLinks[index - 1].classList.add('active');
+                } else {
+                    // Button/Auto Nav: Use dynamic delay (800ms standard, or long for intro)
+                    setTimeout(() => {
+                        navLinks[index - 1].classList.add('active');
+                    }, delay);
+                }
+            }
+        }
+
+        function revealLogoAndNavAfter(delay) {
+            setTimeout(() => {
+                // The master reveal: if we are on pages 1-3, show it.
+                // If we are on page 0, we'll wait for renderPage(1) to handle the reveal if time has passed.
+                if (currentIndex >= 1 && currentIndex <= 3) {
+                    mainLogo.style.display = 'block';
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            mainLogo.style.opacity = '1';
+                        });
+                    });
+                }
+            }, delay);
+        }
+
+        function handleNavClick(targetIndex) {
+            if (currentIndex === targetIndex) return;
+
+            // Start Visual Transition Immediately
+            updateNavActiveState(targetIndex, 0);
+
+            // Fade out buttons immediately
+            btnNext.style.opacity = '0';
+            btnPrev.style.opacity = '0';
+
+            // Signal exit to current page
+            const activeFrame = getActiveFrame();
+            if (activeFrame && activeFrame.contentWindow) {
+                activeFrame.contentWindow.postMessage('exit-page', '*');
+            }
+
+            setTimeout(() => {
+                // Reset controls states
+                simulationControlsActive = false;
+                boidsControlsActive = false;
+
+                currentIndex = targetIndex;
+                // Pass true for immediate transition within renderPage logic
+                renderPage(false, true);
+
+                // Frame visibility is handled by active class in renderPage
+            }, 500);
+        }
+
+        // Temporary Navigation Handler
+        function handleTempNav(type) {
+            let targetIndex = -1;
+            let setupFunc = () => { };
+
+            if (type === 'boids2') {
+                targetIndex = 2; // BOIDS Page
+                setupFunc = () => {
+                    boidsControlsActive = true;
+                    currentBoidsModeIndex = 0; // Separation (default controls mode) or 1 for Alignment? User said "Part 2", usually Alignment is second. Let's start with Separation to show controls generally, or Alignment if specifically requested. Plan said "Alignment Rule". So 1.
+                    currentBoidsModeIndex = 1;
+                };
+            } else if (type === 'sim2') {
+                targetIndex = 3; // SIMULATION Page
+                setupFunc = () => {
+                    simulationControlsActive = true;
+                };
+            } else if (type === 'end') {
+                targetIndex = 4; // END Page
+            }
+
+            if (targetIndex !== -1) {
+                // Fade out buttons immediately
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+
+                // Signal exit
+                const activeFrame = getActiveFrame();
+                if (currentIndex === 0) {
+                    openingStartTime = Date.now();
+                    revealLogoAndNavAfter(3700);
+                }
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('exit-page', '*');
+                }
+
+                setTimeout(() => {
+                    // Reset global defaults first
+                    simulationControlsActive = false;
+                    boidsControlsActive = false;
+
+                    // Apply specific setup
+                    setupFunc();
+
+                    currentIndex = targetIndex;
+                    renderPage(false, true); // Direct nav
+                }, 500);
+            }
+        }
+
+        function renderPage(isReset = false, isDirectNav = false, isAscent = false, isReturnToControls = false, ascentDelay = 0, keepOldFrame = false, resetDelay = 0) {
+            fadeOutAllSentences();
+            // Check background state for transition delay (Opening -> Individual)
+            let transitionDelay = 0;
+            let isFromOpening = false;
+            let timeSinceOpeningStart = 0;
+            if (openingStartTime > 0) {
+                timeSinceOpeningStart = Date.now() - openingStartTime;
+                transitionDelay = Math.max(0, 5000 - timeSinceOpeningStart);
+                openingStartTime = 0; // Reset after reading
+                isFromOpening = true;
+            }
+
+            if (currentIndex >= 0 && currentIndex < pages.length) {
+                let url = pages[currentIndex];
+
+                if (currentIndex === 0 && isReset) {
+                    url += "?mode=reset";
+                    if (resetDelay > 0) {
+                        url += `&resetDelay=${resetDelay}`;
+                    }
+                }
+                if (currentIndex === 1) {
+                    url += `?startDelay=${transitionDelay}`;
+                }
+                if (currentIndex === 2 && boidsControlsActive) {
+                    const modes = ['separation', 'alignment', 'cohesion'];
+                    const modeName = modes[currentBoidsModeIndex] || 'separation';
+                    url += `?start=controls&mode=${modeName}`;
+                }
+                if (currentIndex === 3 && simulationControlsActive) {
+                    url += "?start=controls";
+                    if (isReturnToControls) {
+                        url += "&wait=true";
+                    }
+                }
+                if (currentIndex === 4 && isAscent) {
+                    url += "?mode=ascent";
+                    if (ascentDelay > 0) {
+                        url += `&startDelay=${ascentDelay}`;
+                    }
+                }
+
+                // --- Dual Frame Logic ---
+                const oldFrame = getActiveFrame();
+                const newFrame = getInactiveFrame();
+
+                // 1. Prepare new frame
+                newFrame.src = url;
+
+                // 2. Perform switch
+                if (keepOldFrame) {
+                    // Reflect Mode special: Old frame stays behind
+                    oldFrame.classList.remove('active');
+                    oldFrame.classList.add('persistent');
+                    // Remove persistence after exit (15s)
+                    setTimeout(() => {
+                        // CRITICAL: Only clear IF still persistent and NOT active
+                        if (oldFrame.classList.contains('persistent') && !oldFrame.classList.contains('active')) {
+                            oldFrame.classList.remove('persistent');
+                            oldFrame.src = "about:blank"; // Clear memory
+                        }
+                    }, 15000);
+                } else {
+                    oldFrame.classList.remove('active');
+                    // Clear old src after fade out
+                    setTimeout(() => {
+                        // CRITICAL: Only clear content if the frame is still inactive 
+                        // and NOT reuse for something else in the meantime
+                        if (!oldFrame.classList.contains('active') && !oldFrame.classList.contains('persistent')) {
+                            oldFrame.src = "about:blank";
+                        }
+                    }, 500);
+                }
+
+                // 3. Activate new frame
+                newFrame.classList.remove('persistent'); // Always clear persistence
+                newFrame.classList.add('active');
+                activeFrameNum = (activeFrameNum === 1 ? 2 : 1);
+            }
+
+            // Reset interaction states when changing pages
+            if (currentIndex !== 2) boidsControlsActive = false;
+            // Only reset simulationControlsActive if NOT specifically returning to them
+            if (currentIndex !== 3) {
+                simulationControlsActive = false;
+            } else if (!isReturnToControls) {
+                simulationControlsActive = false;
+            }
+
+            // --- Button Visibility Logic ---
+            if (currentIndex === 0) {
+                // OPENING: Hide main nav (but keep About visible)
+                btnPrev.style.display = 'none';
+                btnPrev.style.opacity = '0';
+                btnNext.style.display = 'none';
+                btnNext.style.opacity = '0';
+                btnAbout.style.opacity = '1'; // Keep About visible
+                mainLogo.style.display = 'none';
+                mainLogo.style.opacity = '0';
+
+                // Hide Top Nav
+                topNav.style.opacity = '0';
+                topNav.style.pointerEvents = 'none';
+
+                bgVideo.classList.add('bg-shifted-up');
+            } else if (currentIndex === 1) {
+                // Individual (Page 1): Hide Prev, Show Next/Logo/TopNav
+                btnPrev.style.display = 'none';
+                btnNext.style.display = 'block';
+                btnNext.style.opacity = '0'; // Revealed by text-faded-out or timer
+                btnAbout.style.opacity = '1';
+                mainLogo.style.display = 'block';
+
+                // Top Nav Appearance Logic
+                const navStateDelay = isFromOpening ? 5000 : (isDirectNav ? 0 : 500);
+                updateNavActiveState(1, navStateDelay);
+
+                if (!isFromOpening) {
+                    // Normal browsing: show logo/nav immediately
+                    requestAnimationFrame(() => {
+                        mainLogo.style.opacity = '1';
+                        topNav.style.opacity = '1';
+                        topNav.style.pointerEvents = 'auto';
+                    });
+                } else {
+                    // Opening flow: Logo should fade in at 3.7s (3700ms)
+                    // If we already passed 3.7s, show it now. Otherwise, the timer will hit.
+                    if (timeSinceOpeningStart >= 3700) {
+                        requestAnimationFrame(() => {
+                            mainLogo.style.opacity = '1';
+                        });
+                    }
+
+                    topNav.style.opacity = '0';
+                    topNav.style.pointerEvents = 'none';
+                    setTimeout(() => {
+                        if (currentIndex >= 1) {
+                            requestAnimationFrame(() => {
+                                topNav.style.opacity = '1';
+                                topNav.style.pointerEvents = 'auto';
+                            });
+                        }
+                    }, Math.max(0, transitionDelay));
+                }
+
+                bgVideo.classList.remove('bg-shifted-up');
+            } else if (currentIndex === 2) {
+                // BOIDS PAGE (formerly index 3)
+                btnPrev.style.display = 'block';
+                // Unified Transition: Wait for text
+                btnPrev.style.opacity = '0';
+                // setTimeout removed - waiting for text-faded-out
+
+                btnNext.style.display = 'block';
+                btnNext.style.opacity = '0';
+                // setTimeout removed - waiting for text-faded-out
+
+                btnAbout.style.opacity = '1';
+                mainLogo.style.display = 'block';
+                // Always ensure logo visibility on Page 2
+                if (!isFromOpening) {
+                    requestAnimationFrame(() => {
+                        mainLogo.style.opacity = '1';
+                    });
+                }
+                updateNavActiveState(2, isDirectNav ? 0 : 500);
+
+                bgVideo.classList.remove('bg-shifted-up');
+            } else if (currentIndex === 3) {
+                // SIMULATION: Intro phase logic (formerly index 4)
+                // If not returning, we assume intro unless explicitly set
+                if (!isReturnToControls) {
+                    simulationControlsActive = false;
+                }
+
+                btnPrev.style.display = 'block';
+                btnPrev.style.opacity = '0';
+
+                // Only show Next if we are in Intro phase
+                if (!simulationControlsActive) {
+                    btnNext.style.display = 'block';
+                    btnNext.style.opacity = '0';
+                } else {
+                    btnNext.style.display = 'none';
+                }
+
+                btnAbout.style.opacity = '1';
+                mainLogo.style.display = 'block';
+                // Ensure logo visibility on Page 3
+                if (!isFromOpening) {
+                    // During return descent (isReturnToControls), keep hidden until timer.
+                    // Otherwise show it.
+                    const targetOpacity = isReturnToControls ? '0' : '1';
+                    requestAnimationFrame(() => {
+                        mainLogo.style.opacity = targetOpacity;
+                    });
+                }
+
+                // Ensure Nav is visible and active (unless returning from End)
+                if (!isReturnToControls) {
+                    topNav.style.opacity = '1';
+                    topNav.style.pointerEvents = 'auto';
+                } else {
+                    topNav.style.opacity = '0';
+                    topNav.style.pointerEvents = 'none';
+                }
+                updateNavActiveState(3, isDirectNav ? 0 : 500);
+
+                if (isReturnToControls) {
+                    // Logic handled in NAVIGATE_BACK_TO_CONTROLS message handler
+                    // to ensure precise synchronization with descent video.
+                }
+
+                bgVideo.classList.remove('bg-shifted-up');
+            } else if (currentIndex === 4) {
+                // END PAGE: Hide Everything
+                btnPrev.style.display = 'none';
+                btnNext.style.display = 'none';
+                btnAbout.style.opacity = '1';
+                btnAbout.style.pointerEvents = 'auto';
+
+                // Hide Nav
+                topNav.style.opacity = '0';
+                topNav.style.pointerEvents = 'none';
+
+                mainLogo.style.display = 'none';
+                mainLogo.style.opacity = '0';
+
+                const sograim = document.getElementById('sograim-icon');
+                if (sograim) {
+                    sograim.style.display = 'block';
+                    sograim.style.opacity = '1';
+                }
+
+                // ASCENT: Move video to opening position
+                bgVideo.classList.add('bg-shifted-up');
+            } else {
+                // DEFAULT: Show all (except Next on last page)
+                btnPrev.style.display = 'block';
+                btnPrev.style.opacity = '1'; // Ensure visible
+                btnNext.style.display = (currentIndex === pages.length - 1) ? 'none' : 'block';
+                btnNext.style.opacity = '1';
+                btnAbout.style.opacity = '1';
+                mainLogo.style.display = 'block';
+                mainLogo.style.opacity = '1';
+                const s = document.getElementById('sograim-icon');
+                if (s) {
+                    s.style.display = 'block';
+                    s.style.opacity = '1';
+                }
+
+                topNav.style.opacity = '1';
+                topNav.style.pointerEvents = 'auto';
+                updateNavActiveState(currentIndex, isDirectNav ? 0 : 500);
+
+                bgVideo.classList.remove('bg-shifted-up');
+            }
+        }
+
+
+        function fadeOutAllSentences() {
+            const duration = 150; // 0.15s fade out
+            const interval = 20; // Update every 20ms
+            const step = interval / duration;
+
+            ['sentence1', 'sentence2', 'sentence3'].forEach(id => {
+                const a = document.getElementById(id);
+                if (a && !a.paused && a.volume > 0) {
+                    const fadeOut = setInterval(() => {
+                        if (a.volume > step) {
+                            a.volume -= step;
+                        } else {
+                            a.volume = 0;
+                            a.pause();
+                            a.currentTime = 0;
+                            clearInterval(fadeOut);
+                        }
+                    }, interval);
+                } else if (a && !a.paused) {
+                    // Already at 0 or near it
+                    a.pause();
+                    a.currentTime = 0;
+                }
+            });
+        }
+
+        // --- CENTRAL MESSAGE LISTENER ---
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'play-sentence') {
+                const id = event.data.id;
+                const audio = document.getElementById(id);
+                const bgAudio = document.getElementById('bg-audio');
+                if (audio && bgAudio) {
+                    audio.currentTime = 0;
+                    audio.volume = bgAudio.volume;
+                    audio.muted = bgAudio.muted || bgAudio.paused || (bgAudio.volume === 0);
+                    audio.play().catch(e => console.log("Parent sentence play failed:", e));
+                    if (!audio._syncHandler) {
+                        audio._syncHandler = () => {
+                            audio.volume = bgAudio.volume;
+                            audio.muted = bgAudio.muted || bgAudio.paused || (bgAudio.volume === 0);
+                        };
+                        bgAudio.addEventListener('volumechange', audio._syncHandler);
+                        bgAudio.addEventListener('play', audio._syncHandler);
+                        bgAudio.addEventListener('pause', audio._syncHandler);
+                    }
+                }
+            }
+
+            if (event.data === 'CLOSE_ABOUT') {
+                toggleAbout(true);
+            }
+
+            if (event.data === 'start-video-movement') {
+                openingStartTime = Date.now();
+                bgVideo.classList.remove('bg-shifted-up');
+                revealLogoAndNavAfter(3700);
+            }
+            if (event.data === 'start-ascent-video') {
+                ascentStartTime = Date.now();
+                bgVideo.classList.add('bg-shifted-up');
+                bgVideo.classList.add('return-speed');
+                btnPrev.style.opacity = '0';
+                topNav.style.opacity = '0';
+                mainLogo.style.opacity = '0';
+                setTimeout(() => {
+                    bgVideo.classList.remove('return-speed');
+                }, 4500);
+            }
+            if (event.data === 'navigate-next') {
+                if (currentIndex < pages.length - 1) {
+                    btnNext.style.opacity = '0';
+                    btnPrev.style.opacity = '0';
+                    setTimeout(() => {
+                        currentIndex++;
+                        renderPage();
+                    }, 500);
+                }
+            }
+            if (event.data === 'navigate-to-end') {
+                let remainingDelay = 0;
+                if (ascentStartTime > 0) {
+                    remainingDelay = Math.max(0, 4500 - (Date.now() - ascentStartTime));
+                }
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+                bgVideo.classList.add('return-speed');
+                setTimeout(() => {
+                    currentIndex = 4;
+                    let adjustedDelay = Math.max(0, remainingDelay - 500);
+                    renderPage(false, false, true, false, adjustedDelay, true);
+                    setTimeout(() => {
+                        bgVideo.classList.remove('return-speed');
+                    }, 6500);
+                }, 500);
+            }
+            if (event.data === 'RESTART_EXPERIENCE') {
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+                bgVideo.classList.add('return-speed');
+                setTimeout(() => {
+                    currentIndex = 0;
+                    renderPage(true, false, false, false, 0, false, 1500); // 1.5s delay for Start Over
+                    setTimeout(() => {
+                        bgVideo.classList.remove('return-speed');
+                    }, 4500);
+                }, 500);
+            }
+            if (event.data === 'NAVIGATE_BACK') {
+                if (currentIndex > 0) {
+                    btnNext.style.opacity = '0';
+                    btnPrev.style.opacity = '0';
+                    setTimeout(() => {
+                        currentIndex--;
+                        renderPage();
+                    }, 500);
+                }
+            }
+            if (event.data === 'NAVIGATE_BACK_TO_CONTROLS') {
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+                bgVideo.classList.add('return-speed');
+                setTimeout(() => {
+                    currentIndex = 3;
+                    simulationControlsActive = true;
+                    renderPage(false, false, false, true);
+                    mainLogo.style.opacity = '0';
+                    setTimeout(() => {
+                        const activeFrame = getActiveFrame();
+                        if (activeFrame && activeFrame.contentWindow) {
+                            activeFrame.contentWindow.postMessage('reveal-controls', '*');
+                        }
+                        btnPrev.style.opacity = '1';
+                        mainLogo.style.opacity = '1';
+                        topNav.style.opacity = '1';
+                        topNav.style.pointerEvents = 'auto';
+                    }, 3700);
+                    setTimeout(() => {
+                        bgVideo.classList.remove('return-speed');
+                    }, 6000);
+                }, 500);
+            }
+
+            if (event.data === 'transition-to-controls') {
+                if (currentIndex === 2) boidsControlsActive = true;
+                if (currentIndex === 3) simulationControlsActive = true;
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+                updateNavActiveState(currentIndex);
+                setTimeout(() => {
+                    btnNext.style.opacity = '1';
+                    btnPrev.style.opacity = '1';
+                }, 800);
+            }
+
+            if (typeof event.data === 'string' && event.data.startsWith('update-index:')) {
+                const newIndex = parseInt(event.data.split(':')[1]);
+                if (!isNaN(newIndex) && newIndex !== currentIndex) {
+                    btnNext.style.opacity = '0';
+                    btnPrev.style.opacity = '0';
+                    setTimeout(() => {
+                        currentIndex = newIndex;
+                        renderPage();
+                    }, 500);
+                }
+            }
+
+            if (event.data === 'text-faded-out') {
+                if (currentIndex === 1 || currentIndex === 2 || currentIndex === 3) {
+                    setTimeout(() => {
+                        // Double RAF to ensure browser transitions from current opacity (0)
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                btnNext.style.opacity = '1';
+                                btnPrev.style.opacity = '1';
+                            });
+                        });
+                    }, 800);
+                }
+            } else if (typeof event.data === 'string' && event.data.startsWith('rule-changed:')) {
+                const rule = event.data.split(':')[1].toLowerCase();
+                if (rule === 'separation') currentBoidsModeIndex = 0;
+                else if (rule === 'alignment') currentBoidsModeIndex = 1;
+                else if (rule === 'cohesion') currentBoidsModeIndex = 2;
+                else if (rule === 'default') {
+                    boidsControlsActive = false;
+                    currentBoidsModeIndex = 0;
+                }
+            }
+
+            if (event.data === 'REVEAL_NAV_ITEM') {
+                if (currentIndex >= 1 && currentIndex <= 3) {
+                    unlockedPages[currentIndex] = true;
+                    const link = navLinks[currentIndex - 1];
+                    link.classList.add('unlocked');
+                    // After text fades in (0.8s), reveal the active underline
+                    updateNavActiveState(currentIndex, 800);
+                }
+            }
+
+            // --- MOUSE TRACKING ---
+            if (event.data && event.data.type === 'ABOUT_MOUSE_MOVE') {
+                const aboutIframe = document.getElementById('about-overlay');
+                const container = document.getElementById('screen-container');
+                if (aboutIframe && container) {
+                    const iframeRect = aboutIframe.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+
+                    // Convert local iframe mouse to screen-container relative
+                    const relX = event.data.x + iframeRect.left - containerRect.left;
+                    const relY = event.data.y + iframeRect.top - containerRect.top;
+                    broadcastMouseMove(relX, relY);
+                }
+            }
+        });
+
+        function broadcastMouseMove(x, y) {
+            const f1 = document.getElementById('frame-1');
+            const f2 = document.getElementById('frame-2');
+            const msg = { type: 'GLOBAL_MOUSE_MOVE', x: x, y: y };
+            if (f1 && f1.contentWindow) f1.contentWindow.postMessage(msg, '*');
+            if (f2 && f2.contentWindow) f2.contentWindow.postMessage(msg, '*');
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            const screenContainer = document.getElementById('screen-container');
+            if (!screenContainer) return;
+            const rect = screenContainer.getBoundingClientRect();
+            broadcastMouseMove(e.clientX - rect.left, e.clientY - rect.top);
+        });
+
+        // --- GLOBAL BUTTON CLICKS ---
+        btnNext.addEventListener('click', () => {
+            const activeFrame = getActiveFrame();
+
+            // SPECIAL: Boids Page (2) - Transition to controls
+            if (currentIndex === 2 && !boidsControlsActive) {
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('transition-to-controls', '*');
+                    boidsControlsActive = true;
+
+                    // Match Simulation Page behavior: Fade buttons out and back in
+                    btnNext.style.opacity = '0';
+                    btnPrev.style.opacity = '0';
+                    // Sync: Re-trigger line animation
+                    updateNavActiveState(currentIndex);
+
+                    setTimeout(() => {
+                        btnNext.style.opacity = '1';
+                        btnPrev.style.opacity = '1';
+                    }, 800); // Standardized to 800ms for site-wide consistency
+                }
+                return;
+            }
+
+            // SPECIAL: Simulation page intro phase -> controls
+            if (currentIndex === 3) {
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('transition-to-controls', '*');
+                    simulationControlsActive = true;
+                    btnNext.style.opacity = '0';
+                    setTimeout(() => {
+                        btnNext.style.display = 'none';
+                    }, 500);
+
+                    btnPrev.style.opacity = '0';
+                    updateNavActiveState(currentIndex);
+
+                    setTimeout(() => {
+                        btnPrev.style.opacity = '1';
+                    }, 880); // Adjusted to 880ms to perfectly sync with iframe reveal animation (including message lag)
+                }
+                return;
+            }
+
+            // SPECIAL: Boids (2) -> Simulation (3) Exit
+            if (currentIndex === 2 && activeFrame && activeFrame.contentWindow) {
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+                activeFrame.contentWindow.postMessage('exit-page', '*');
+                clearActiveNav();
+
+                setTimeout(() => {
+                    if (currentIndex < pages.length - 1) {
+                        currentIndex++;
+                        renderPage();
+                    }
+                }, 500);
+                return;
+            }
+
+            if (currentIndex < pages.length - 1) {
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+
+                // Signal exit to current page
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('exit-page', '*');
+                }
+
+                setTimeout(() => {
+                    currentIndex++;
+                    renderPage();
+                }, 500);
+            }
+        });
+
+        btnPrev.addEventListener('click', () => {
+            const activeFrame = getActiveFrame();
+
+            // SPECIAL: Boids controls phase -> intro phase
+            if (currentIndex === 2 && boidsControlsActive) {
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('reset-to-intro', '*');
+                    boidsControlsActive = false;
+                    currentBoidsModeIndex = 0;
+                    btnPrev.style.opacity = '0';
+                    btnNext.style.opacity = '0';
+                    updateNavActiveState(currentIndex);
+                }
+                return;
+            }
+
+            // SPECIAL: Simulation controls phase -> intro phase
+            if (currentIndex === 3 && simulationControlsActive) {
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('reset-to-intro', '*');
+                    simulationControlsActive = false;
+                    btnPrev.style.opacity = '0';
+                    btnNext.style.display = 'block';
+                    btnNext.style.opacity = '0';
+                }
+                return;
+            }
+
+            if (currentIndex > 0) {
+                btnNext.style.opacity = '0';
+                btnPrev.style.opacity = '0';
+
+                // Signal exit to current page
+                if (activeFrame && activeFrame.contentWindow) {
+                    activeFrame.contentWindow.postMessage('exit-page', '*');
+                }
+
+                setTimeout(() => {
+                    if (currentIndex === 2) {
+                        clearActiveNav();
+                    }
+
+                    currentIndex--;
+                    if (currentIndex === 2) {
+                        boidsControlsActive = true;
+                    }
+                    renderPage();
+                }, 500);
+            }
+        });
+
+
+
+        // RETURN TO HOME (Logo)
+        mainLogo.addEventListener('click', () => {
+            // Fade out current page and buttons immediately
+            btnNext.style.opacity = '0';
+            btnPrev.style.opacity = '0';
+            mainLogo.style.opacity = '0';
+            // Add faster return speed class
+            bgVideo.classList.add('return-speed');
+
+            // Signal exit to current page
+            const activeFrame = getActiveFrame();
+            if (activeFrame && activeFrame.contentWindow) {
+                activeFrame.contentWindow.postMessage('exit-page', '*');
+            }
+
+            setTimeout(() => {
+                currentIndex = 0;
+                renderPage(true, false, false, false, 0, false, 3500); // 3.5s delay for Logo Return
+
+                // Clear the fast speed class after the transition finishes 
+                setTimeout(() => {
+                    bgVideo.classList.remove('return-speed');
+                }, 4500);
+            }, 500);
+        });
+
+        // Initial Boot
+        renderPage();
+    </script>
+</body>
+
+</html>

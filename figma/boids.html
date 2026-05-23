@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flocking Rules</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Ratzif22';
+            src: url('../fonts/Ratzif22.otf') format('opentype');
+        }
+
+
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #screen-container {
+            width: 100vw;
+            height: 100vh;
+            background-color: transparent;
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        .serif-text {
+            font-family: 'Instrument Serif', serif;
+            color: white;
+            line-height: 1;
+        }
+
+        .text-number {
+            position: absolute;
+            left: 85px;
+            top: 125px;
+            font-size: 50px;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .text-title {
+            position: absolute;
+            left: 151px;
+            top: 125px;
+            font-size: 50px;
+            text-transform: uppercase;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        /* --- CONTENT FLOW --- */
+        .content-flow {
+            position: absolute;
+            left: 220px;
+            top: 210px;
+            width: 650px;
+            display: flex;
+            flex-direction: column;
+            /* Using margins on children for precise varied gaps */
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .flow-intro {
+            margin-bottom: 30px;
+            /* Reduced by another 2px */
+        }
+
+        #sec-vector {
+            margin-top: 15px;
+            /* Restored to 15px for better breathing room */
+        }
+
+        .section-group {
+            display: flex;
+            flex-direction: column;
+            /* Flex layout ensures titles stay stable while content below expands */
+        }
+
+        .expand-container {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .section-group.expanded .expand-container {
+            grid-template-rows: 1fr;
+        }
+
+        .flow-text-wrapper {
+            min-height: 0;
+        }
+
+        .section-group .flow-text {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            margin-top: 15.85px;
+            /* 14px visual gap from underline */
+            margin-bottom: 15px;
+            /* Restored to 15px */
+        }
+
+        .section-group.expanded .flow-text {
+            opacity: 1;
+            transition: opacity 0.3s ease 0.2s;
+            pointer-events: auto;
+        }
+
+        /* Specific speed-up for Definition */
+        #sec-def .expand-container {
+            transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #sec-def.expanded .flow-text {
+            transition: opacity 0.2s ease 0.1s;
+        }
+
+        .flow-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 23px;
+            color: white;
+            line-height: 1;
+            position: relative;
+            width: fit-content;
+            cursor: pointer;
+            user-select: none;
+            padding-top: 8px;
+            /* Lower title closer to underline */
+        }
+
+        .flow-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -2px;
+            /* Stable distance from the baseline */
+            width: 100%;
+            height: 0.9px;
+            /* Explicitly matching the requested thickness */
+            background-color: white;
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+
+        .flow-text {
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            color: white;
+            line-height: 110%;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* --- DECORATION --- */
+        .arrow-icon {
+            position: absolute;
+            left: 154px;
+            top: 210px;
+            width: 46px;
+            height: 10px;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .fast-fade {
+            transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+        }
+
+        /* --- FOOTER NAV --- */
+        .footer-nav {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            /* Nudged 1px left as requested (total 21px right from original) */
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-end;
+            /* Ensures all decorations and pills sit on the same baseline */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+            z-index: 100;
+        }
+
+        .footer-nav.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .pill-group {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .nav-pill {
+            font-family: 'Helvetica Neue', sans-serif;
+            font-size: 15px;
+            text-transform: uppercase;
+            color: white;
+            padding: 7.5px 14px;
+            border-radius: 25px;
+            border: 1.5px solid white;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease, background-color 0.3s;
+            opacity: 0.75;
+            /* Set to 0.75 as requested */
+        }
+
+        .nav-pill:hover {
+            opacity: 1;
+        }
+
+        .nav-pill.active {
+            background-color: rgba(255, 255, 255, 0.3);
+            opacity: 1;
+        }
+
+        /* --- CANVAS --- */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1546px;
+            height: 1004px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .individual-text {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 444px;
+            width: auto;
+            height: 24px;
+            font-family: 'Ratzif22', serif;
+            font-size: 20px;
+            color: white;
+            white-space: nowrap;
+            line-height: 24px;
+            text-align: center;
+            z-index: 10;
+            /* opacity: 0; handled by script now */
+            visibility: hidden;
+            transition: none;
+            /* remove fade transition for manual control */
+            pointer-events: none;
+        }
+
+        .individual-text span {
+            opacity: 0;
+            display: inline-block;
+            transition: opacity 0.5s ease;
+        }
+
+        .individual-text span.on {
+            opacity: 1;
+        }
+
+        .individual-text.fade-out {
+            opacity: 0 !important;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+
+<body>
+    <div id="screen-container">
+        <!-- Top Navigation -->
+
+        <!-- p5 Simulation -->
+        <div id="canvas-container"></div>
+        <script src="../p5/boids.js"></script>
+
+        <!-- Intro Sentence (Default Mode) -->
+        <div class="individual-text">Boids model explains how small groups move together within a collective</div>
+
+        <!-- Audio Asset -->
+        <audio id="typewriter-sound" src="../assets/sentence2.mp3" preload="auto"></audio>
+
+
+        <!-- Dynamic Content Header -->
+        <div id="display-number" class="serif-text text-number">01</div>
+        <div id="display-title" class="serif-text text-title">SEPARATION</div>
+
+        <!-- Decoration -->
+        <div class="arrow-icon">
+            <svg width="46" height="10" viewBox="0 0 46 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M0.635742 4.04442C0.284757 4.04442 0.000228136 4.32895 0.000228167 4.67993C0.000228197 5.03092 0.284758 5.31545 0.635742 5.31545L0.635742 4.67993L0.635742 4.04442ZM45.0851 5.1293C45.3333 4.88112 45.3333 4.47874 45.0851 4.23055L41.0407 0.186165C40.7925 -0.0620181 40.3902 -0.0620181 40.142 0.186165C39.8938 0.434349 39.8938 0.836734 40.142 1.08492L43.737 4.67993L40.142 8.27494C39.8938 8.52312 39.8938 8.92551 40.142 9.17369C40.3902 9.42187 40.7925 9.42187 41.0407 9.17369L45.0851 5.1293ZM0.635742 4.67993L0.635742 5.31545L44.6357 5.31544L44.6357 4.67993L44.6357 4.04441L0.635742 4.04442L0.635742 4.67993Z"
+                    fill="white" />
+            </svg>
+        </div>
+
+        <!-- Dynamic Content Body -->
+        <div id="content-container" class="content-flow">
+            <!-- Content Injected via JS -->
+        </div>
+
+        <!-- Footer Navigation -->
+        <!-- Footer Navigation -->
+        <div class="footer-nav">
+            <div class="pill-group">
+                <div class="nav-pill" onclick="selectRule('separation')">SEPARATION</div>
+                <div class="nav-pill" onclick="selectRule('alignment')">ALIGNMENT</div>
+                <div class="nav-pill" onclick="selectRule('cohesion')">COHESION</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode Data Store -->
+    <script>
+        const rulesData = {
+            separation: {
+                number: "01",
+                title: "SEPARATION",
+                intro: "To fly together, we must first learn how to stand<br>apart. Separation is the invisible boundary that<br>preserves the individual within the mass.",
+                definition: "Steer to avoid crowding local flockmates.",
+                vector: "Each agent scans its immediate surroundings for<br>neighbors that are too close. If a personal space<br>threshold is breached, a steering force is generated<br>in the opposite direction."
+            },
+            alignment: {
+                number: "02",
+                title: "ALIGNMENT",
+                intro: "To move as one, we do not need a leader; we need a<br>shared resonance. Alignment is the quiet agreement<br>to flow together without surrendering the integrity<br>of our own path.",
+                definition: "Steer towards the average heading of local flockmates.",
+                vector: "The agent looks at the velocities (speed and<br>direction) of its nearby neighbors and calculates<br>their average heading."
+            },
+            cohesion: {
+                number: "03",
+                title: "COHESION",
+                intro: "To stay together, we must constantly orient<br>ourselves toward each other. Cohesion is the quiet<br>gravity of belonging, the collective anchor that<br>prevents the individual from drifting away.",
+                definition: "Steer to move toward the average position of local flockmates.",
+                vector: "The agent calculates the center of mass (the<br>average position) of its local neighborhood. It then<br>generates a steering force toward that center."
+            }
+        };
+
+        const numberEl = document.getElementById('display-number');
+        const titleEl = document.getElementById('display-title');
+        const contentEl = document.getElementById('content-container');
+
+        function updateContent(mode) {
+            const data = rulesData[mode];
+
+            // Build HTML with interactive titles and precise spacing
+            let html = `
+                <div class="flow-text flow-intro" style="width: 600px;">${data.intro}</div>
+                
+                <div class="section-group" id="sec-def">
+                    <div class="flow-title" onclick="toggleSection('sec-def')">BOIDS DEFINITION</div>
+                    <div class="expand-container">
+                        <div class="flow-text-wrapper">
+                            <div class="flow-text" style="width: 650px;">${data.definition}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-group" id="sec-vector">
+                    <div class="flow-title" onclick="toggleSection('sec-vector')">VECTOR LOGIC</div>
+                    <div class="expand-container">
+                        <div class="flow-text-wrapper">
+                            <div class="flow-text" style="width: 650px;">${data.vector}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            contentEl.innerHTML = html;
+            numberEl.textContent = data.number;
+            titleEl.textContent = data.title;
+        }
+
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.toggle('expanded');
+            }
+        }
+
+        function selectRule(ruleName, isInitial = false) {
+            // First time click: Reveal all
+            if (numberEl.style.opacity === '0') {
+                numberEl.style.opacity = '1';
+                titleEl.style.opacity = '1';
+                contentEl.style.opacity = '1';
+            }
+
+            // update p5
+            if (typeof changeRule === 'function') {
+                changeRule(ruleName);
+            }
+
+            // update UI pills
+            const pills = document.querySelectorAll('.nav-pill');
+            pills.forEach(p => {
+                if (p.textContent.toLowerCase().includes(ruleName)) {
+                    p.classList.add('active');
+                } else {
+                    p.classList.remove('active');
+                }
+            });
+
+            // handle exact text matching for pills in case my basic check above failed for typos
+            pills.forEach(p => p.classList.remove('active'));
+            // re-apply
+            pills.forEach(p => {
+                const text = p.textContent.trim().toUpperCase();
+                const r = ruleName.toUpperCase();
+                // Map rule name to button text logic
+                if (r === 'SEPARATION' && text === 'SEPARATION') p.classList.add('active');
+                if (r === 'ALIGNMENT' && text === 'ALIGNMENT') p.classList.add('active');
+                if (r === 'COHESION' && text === 'COHESION') p.classList.add('active');
+            });
+
+
+            if (isInitial) {
+                // Immediate update for first reveal (sync with buttons/arrow)
+                updateContent(ruleName);
+                numberEl.style.opacity = '1';
+                titleEl.style.opacity = '1';
+                contentEl.style.opacity = '1';
+                // Remove fast-fade for initial reveal if present
+                numberEl.classList.remove('fast-fade');
+                titleEl.classList.remove('fast-fade');
+                contentEl.classList.remove('fast-fade');
+                const arrowEl = document.querySelector('.arrow-icon');
+                if (arrowEl) {
+                    arrowEl.classList.remove('fast-fade');
+                    arrowEl.style.opacity = '1';
+                }
+            } else {
+                // Refined Switch Animation (Match Simulation Timing, but Arrow Fades too)
+                // 1. Add fast-fade class
+                numberEl.classList.add('fast-fade');
+                titleEl.classList.add('fast-fade');
+                contentEl.classList.add('fast-fade');
+                const arrowEl = document.querySelector('.arrow-icon');
+                if (arrowEl) arrowEl.classList.add('fast-fade');
+
+                // 2. Fade Out Content AND Arrow
+                numberEl.style.opacity = '0';
+                titleEl.style.opacity = '0';
+                contentEl.style.opacity = '0';
+                if (arrowEl) arrowEl.style.opacity = '0';
+
+                setTimeout(() => {
+                    updateContent(ruleName);
+                    // 3. Fade In
+                    numberEl.style.opacity = '1';
+                    titleEl.style.opacity = '1';
+                    contentEl.style.opacity = '1';
+                    if (arrowEl) arrowEl.style.opacity = '1';
+                }, 500); // 500ms timing
+            }
+
+            // Notify parent of state change to keep global navigation in sync
+            window.parent.postMessage('rule-changed:' + ruleName, '*');
+        }
+
+
+        // Initialize
+        // Start in default mode: Text hidden, no active pills
+
+        // We only want to hide them initially.
+        numberEl.style.opacity = '0';
+        titleEl.style.opacity = '0';
+        contentEl.style.opacity = '0';
+
+        // Remove pre-active pill
+        const activePill = document.querySelector('.nav-pill.active');
+        if (activePill) activePill.classList.remove('active');
+
+        // Message Listener
+        window.addEventListener('message', (event) => {
+            if (event.data === 'transition-to-controls') {
+                // Fade out intro text
+                const introText = document.querySelector('.individual-text');
+                if (introText) introText.classList.add('fade-out');
+
+                setTimeout(() => {
+                    // Reveal controls
+                    document.querySelector('.footer-nav').classList.add('visible');
+
+                    // Reveal arrow
+                    const arrowEl = document.querySelector('.arrow-icon');
+                    if (arrowEl) arrowEl.style.opacity = '1';
+
+                    // Select separation to show text and lines
+                    selectRule('separation', true);
+                }, 800); // Standardized to 800ms for site-wide consistency
+            } else if (event.data === 'reset-to-intro') {
+                // Reveal intro text
+                const introText = document.querySelector('.individual-text');
+                if (introText) {
+                    // Re-run typewriter animation
+                    typeLine(introText, { delayBefore: 1500, fadeOut: true, perChar: 55, stay: 3500 });
+                }
+
+                // Hide controls
+                document.querySelector('.footer-nav').classList.remove('visible');
+
+                // Hide rule info
+                numberEl.style.opacity = '0';
+                titleEl.style.opacity = '0';
+                contentEl.style.opacity = '0';
+
+                // Hide arrow
+                const arrowEl = document.querySelector('.arrow-icon');
+                if (arrowEl) arrowEl.style.opacity = '0';
+
+                // Reset pills
+                const activePill = document.querySelector('.nav-pill.active');
+                if (activePill) activePill.classList.remove('active');
+
+                // Revert p5 to default
+                if (typeof changeRule === 'function') {
+                    changeRule('default');
+                }
+            } else if (typeof event.data === 'string' && event.data.startsWith('switch-rule:')) {
+                const rule = event.data.split(':')[1];
+                selectRule(rule);
+            } else if (event.data === 'exit-page') {
+                // Fade out everything for page transition
+
+                // Hide controls
+                document.querySelector('.footer-nav').classList.remove('visible');
+
+                // Hide arrow
+                const arrowEl = document.querySelector('.arrow-icon');
+                if (arrowEl) arrowEl.style.opacity = '0';
+
+                // Hide content with inline style (matches reset-to-intro behavior)
+                numberEl.style.opacity = '0';
+                titleEl.style.opacity = '0';
+                contentEl.style.opacity = '0';
+
+                // Fade out P5 canvas elements
+                if (typeof changeRule === 'function') {
+                    changeRule('default');
+                }
+            }
+        });
+
+        // Typewriter Logic
+        function typeLine(el, opts = {}) {
+            if (!el) return;
+            const delayBefore = opts.delayBefore ?? 500;
+            const perChar = opts.perChar ?? 55;
+            const stay = opts.stay ?? 3000;
+            const shouldFade = opts.fadeOut ?? false;
+
+            const text = el.dataset.text || el.textContent || "";
+            el.textContent = "";
+            el.classList.remove("fade-out"); // Ensure it's not hidden by class
+            el.style.display = 'block'; // Ensure it's not hidden by display:none
+            el.style.visibility = "visible";
+            el.style.opacity = "1";
+
+            setTimeout(() => {
+                // Reveal self in navigation bar
+                window.parent.postMessage('REVEAL_NAV_ITEM', '*');
+
+                // Centralized narration management: tell parent to play
+                window.parent.postMessage({ type: 'play-sentence', id: 'sentence2' }, '*');
+
+                const spans = [];
+                for (let i = 0; i < text.length; i++) {
+                    const ch = text[i] === " " ? "\u00A0" : text[i];
+                    const s = document.createElement("span");
+                    s.textContent = ch;
+                    el.appendChild(s);
+                    spans.push(s);
+                }
+
+                let idx = 0;
+                const timer = setInterval(() => {
+                    if (idx >= spans.length) {
+                        clearInterval(timer);
+                        if (shouldFade) {
+                            setTimeout(() => {
+                                el.classList.add("fade-out");
+                                setTimeout(() => window.parent.postMessage('text-faded-out', '*'), 500);
+                            }, stay);
+                        }
+                        el.dispatchEvent(new CustomEvent('typingFinished'));
+                        return;
+                    }
+                    spans[idx].classList.add("on");
+                    idx++;
+                }, perChar);
+            }, delayBefore);
+        }
+
+        // Intro Text Fade In
+        // Intro Text Fade In / OR Start in Controls
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const startMode = urlParams.get('start');
+
+            if (startMode === 'controls') {
+                // Immediate transition to controls (Skip Intro), BUT with 1s fade-in delay as requested
+                const introText = document.querySelector('.individual-text');
+                if (introText) {
+                    introText.style.display = 'none'; // Ensure hidden
+                }
+
+                // Wait 0.8 second before revealing the UI ("The texts" / Mode Bar)
+                setTimeout(() => {
+                    document.querySelector('.footer-nav').classList.add('visible');
+                    const arrowEl = document.querySelector('.arrow-icon');
+                    if (arrowEl) arrowEl.style.opacity = '1';
+                }, 500);
+
+                // Notify parent immediately so its 0.8s counter starts NOW.
+                // Result: Buttons (Parent) and UI (Child) both appear at T+0.8s.
+                window.parent.postMessage('text-faded-out', '*');
+
+                selectRule('separation');
+                return;
+            }
+
+            const introText = document.querySelector('.individual-text');
+            if (introText) {
+                // Use typewriter instead of simple fade
+                // Unified Delay: 800ms, Faster typing (50ms), Shorter stay (2.5s)
+                typeLine(introText, { delayBefore: 1500, fadeOut: true, perChar: 55, stay: 3500 });
+            }
+        });
+
+        // p5 starts in 'default' automatically (boids.js line 5)
+    </script>
+</body>
+
+</html>
